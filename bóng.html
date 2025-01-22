@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Trò Chơi Bóng Dịch Chuyển(đinh thái minh)</title>
+    <style>
+        body, html {
+            margin: 0;
+            overflow: hidden;
+            background: black;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="backgroundCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
+    <audio id="hitSound" src="https://www.fesliyanstudios.com/play-mp3/387"></audio>
+    <audio id="gameOverSound" src="https://www.fesliyanstudios.com/play-mp3/390"></audio>
+
+    <script>
+        const bgCanvas = document.getElementById('backgroundCanvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        bgCanvas.width = canvas.width = window.innerWidth;
+        bgCanvas.height = canvas.height = window.innerHeight;
+
+        let ball, paddle, score, gameOver, gamePaused;
+        let backgroundHue = 0;
+        let particles = [];
+
+        function resetGame() {
+            ball = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                radius: 20,
+                dx: 6,
+                dy: 6,
+                speed: 1.1
+            };
+
+            paddle = {
+                x: canvas.width / 2 - 100,
+                y: canvas.height - 40,
+                width: 200,
+                height: 20
+            };
+
+            score = 0;
+            gameOver = false;
+            gamePaused = false;
+
+            particles = [];
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * bgCanvas.width,
+                    y: Math.random() * bgCanvas.height,
+                    radius: Math.random() * 3 + 1,
+                    speedX: Math.random() * 2 - 1,
+                    speedY: Math.random() * 2 - 1
+                });
+            }
+        }
+
+        resetGame();
+
+        document.addEventListener('mousemove', (e) => {
+            paddle.x = e.clientX - paddle.width / 2;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                gamePaused = !gamePaused;
+                if (!gamePaused) gameLoop();
+            }
+        });
+
+        function drawBackground() {
+            bgCtx.fillStyle = `hsl(${backgroundHue}, 100%, 20%)`;
+            bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+            particles.forEach(p => {
+                bgCtx.beginPath();
+                bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                bgCtx.fillStyle = `rgba(173, 216, 230, 0.8)`;
+                bgCtx.fill();
+                bgCtx.closePath();
+
+                p.x += p.speedX;
+                p.y += p.speedY;
+
+                if (p.x < 0 || p.x > bgCanvas.width) p.speedX *= -1;
+                if (p.y < 0 || p.y > bgCanvas.height) p.speedY *= -1;
+            });
+
+            backgroundHue += 0.5;
+        }
+
+        function randomMoveBall() {
+            ball.x = Math.random() * canvas.width;
+            ball.y = Math.random() * canvas.height / 2;
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'yellow';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'yellow';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.fillStyle = 'cyan';
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'cyan';
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+        }
+
+        function drawScore() {
+            ctx.font = '24px Arial';
+            ctx.fillStyle = 'white';
+            ctx.fillText(`Score: ${score}`, 20, 30);
+        }
+
+        function shakeScreen() {
+            canvas.style.transform = `translate(${Math.random() * 10}px, ${Math.random() * 10}px)`;
+            setTimeout(() => {
+                canvas.style.transform = 'translate(0,0)';
+            }, 100);
+        }
+
+        function update() {
+            if (gamePaused || gameOver) return;
+
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Va chạm tường
+            if (ball.x - ball.radius < 0 || ball.x + ball.radius > canvas.width) {
+                ball.dx = -ball.dx;
+            }
+
+            if (ball.y - ball.radius < 0) {
+                ball.dy = -ball.dy;
+            }
+
+            // Va chạm paddle
+            if (
+                ball.y + ball.radius > paddle.y &&
+                ball.x > paddle.x &&
+                ball.x < paddle.x + paddle.width
+            ) {
+                ball.dy = -ball.dy;
+                score++;
+                ball.dx *= ball.speed;
+                ball.dy *= ball.speed;
+
+                // Dịch chuyển bóng khi chạm paddle
+                randomMoveBall();
+
+                hitSound.play();
+                shakeScreen();
+            }
+
+            // Game over
+            if (ball.y + ball.radius > canvas.height) {
+                gameOverSound.play();
+                gameOver = true;
+                setTimeout(() => {
+                    alert(`Game Over! Score: ${score}`);
+                    resetGame();
+                    gameLoop();
+                }, 500);
+            }
+        }
+
+        function gameLoop() {
+            if (gameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
+            drawBall();
+            drawPaddle();
+            drawScore();
+            update();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
